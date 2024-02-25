@@ -24,8 +24,7 @@ def start_app():
 
 @app.post("/process-file/{id}/{folder}")
 def process_file(file: UploadFile, id: str, folder:str):
-    file_path = utils.save_file(file)
-    res, docs = document_processing.process_docs(file_path=file_path)
+    res, docs = document_processing.process_docs(file=file)
     if res["status"] == True:
         res = docs[0].page_content
         res = langchain_api.get_resume_data(res)
