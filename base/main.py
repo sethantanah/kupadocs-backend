@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import pinecone_api, langchain_api, document_processing, utils, settings
+import langchain_api, document_processing, utils, settings
 
 
 
@@ -16,23 +16,13 @@ app.add_middleware(
 )
 
 
-@app.get("/app/")
-def start_app():
-    pinecone_api.check_vdb_index()
-    return JSONResponse(content={"msg": "Welcome to kanddle api"}, status_code=200)
 
-
-@app.post("/process-file/{id}/{folder}")
-def process_file(file: UploadFile, id: str, folder:str):
-    res, docs = document_processing.process_docs(file=file)
+@app.post("/process-file/")
+def process_file(file: UploadFile):
+    path = utils.save_file(file)
+    res, docs = document_processing.process_docs(file=path)
     if res["status"] == True:
         res = docs[0].page_content
         res = langchain_api.get_resume_data(res)
 
     return JSONResponse(content=res, status_code=200)
-
-
-
-
-
-
