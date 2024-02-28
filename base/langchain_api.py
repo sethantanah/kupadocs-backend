@@ -1,6 +1,6 @@
 
 import os, json, settings, openai
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 
@@ -8,21 +8,25 @@ from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 
 openai.api_key = settings.OPENAI_API_KEY
 llm_model = settings.OPENAI_DEFAULT_LLM
-chat = ChatOpenAI(openai_api_key=settings.OPENAI_API_KEY,temperature=0.0, model=llm_model)
+
 
 
 resume_template = """\
-For the following text, extract the most relevant information.\
+The following text is from a Resume or CV, extract the most relevant information.\
 Note: keep the same structure, if information is not availale in the content leave blank values.\
 
 Format the output as JSON with the following keys:
 name
+bio
 contact_information
 work_experience
 education
-skills
+skills: list of skills
 certifications
+projects
 languages
+projects
+organizations
 additional_information
 
 text: {text}
@@ -31,16 +35,22 @@ text: {text}
 
 
 def get_resume_data(resume_text:str):
+    chat = ChatOpenAI(temperature=0.0, model=llm_model, openai_api_key=settings.OPENAI_API_KEY)
     """### Parse the LLM output string into a Python dictionary"""
 
     name_schema = ResponseSchema(name="name",
                                 description="name of person")
+    
+    about_schema = ResponseSchema(name="about",
+                                description="The bio or resume summary of  the person")
 
     contact_schema = ResponseSchema(name="contact_information",
                                 description='{\
                                             "address": "123 Main Street, City, State, Zip",\
                                             "phone": "123-456-7890",\
                                             "email": "johndoe@example.com"\
+                                            "linkedin": "LinkedIn link",\
+                                            "github": "github url"\
                                             }')
 
 
@@ -51,6 +61,7 @@ def get_resume_data(resume_text:str):
                                             "location": "City, State",\
                                             "dates": "Start Date - End Date",\
                                             "description": "Brief description of responsibilities and achievements."\
+                                            "responsibilities": "Responsibilities of at the company"\
                                             }]')
 
 
@@ -65,18 +76,24 @@ def get_resume_data(resume_text:str):
 
 
     skills_schema = ResponseSchema(name="skills",
-                                description='[\
-                                            "Skill 1",\
-                                            "Skill 2",\
-                                            "Skill 3"\
-                                        ]')
+                                description='A list of skills, only the name of the skill, it should not be categorized, just a list of strings')
 
 
     certifications_schema = ResponseSchema(name="certifications",
-                                description='[\
-                                            "Certification 1",\
-                                            "Certification 2"\
-                                        ]')
+                                description='[{\
+                                            "title": "Certificate title",\
+                                            "organization": "The organization that issued the certificate",\
+                                            "certificate_link": "The link to the certificate",\
+                                            "dates": "Graduation Date"\
+                                            }]')
+
+    
+    projects_schema = ResponseSchema(name="projects",
+                                description='[{\
+                                            "title": "The title of the project",\
+                                            "description": "Description of the project",\
+                                            "url": "The link to the project",\
+                                            }]')
 
 
     languages_schema = ResponseSchema(name="languages",
@@ -85,12 +102,19 @@ def get_resume_data(resume_text:str):
                                             "Language 2"\
                                         ]')
 
+    organization_schema = ResponseSchema(name="organizations",
+                                description='[{\
+                                            "name": "Name of the organization",\
+                                            "dates": "Dates of asscociation",\
+                                            "role": "The role in the association",\
+                                            }]')
+
 
     additional_information_schema = ResponseSchema(name="additional_information",
                                 description='Any additional information or achievements.')
 
-    response_schemas = [name_schema, contact_schema, work_experiance_schema, education_schema,
-                        skills_schema, certifications_schema, languages_schema, additional_information_schema]
+    response_schemas = [about_schema, name_schema, contact_schema, work_experiance_schema, education_schema,
+                        skills_schema, certifications_schema, projects_schema, languages_schema, organization_schema, additional_information_schema]
 
 
     output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
